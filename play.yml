@@ -17,7 +17,9 @@
 
     - name: Clean up
       ansible.builtin.shell:
-        cmd: apt autoremove -y
+        cmd: |
+          apt update -y
+          apt autoremove -y
 
     - name: Install Docker
       ansible.builtin.apt:
@@ -28,33 +30,36 @@
         force: yes
 
     - name: Configure actions user
-      block:
-        - name: Add user actions, set up groups
-          ansible.builtin.user:
-            name: actions
-            create_home: yes
-            groups:
-              - sudo
-              - docker
-            append: yes
+      ansible.builtin.user:
+        name: actions
+        state: present
+        create_home: yes
+        groups: sudo,docker
 
-        - name: Create actions-runner directory
-          ansible.builtin.file:
-            path: /home/actions/actions-runner
-            state: directory
-            owner: actions
-            group: actions
+    - name: Deploy Actions
+      ansible.builtin.shell:
+        cmd: |
+          ( cd /home/actions
+            rm -rf actions-runner
+            mkdir actions-runner && cd actions-runner
+            curl -L -o actions-runner-linux-x64-{{ runner_version }}.tar.gz {{ runner_url }}
+            tar xf actions-runner-linux-x64-{{ runner_version }}.tar.gz --strip-components=1
+            chown -R actions:actions . )
 
-        - name: Deploy & run Actions
-          ansible.builtin.shell:
-            cmd: |
-              ( cd /home/actions && rm -rf actions-runner 
-                sudo -u actions mkdir actions-runner
-                cd actions-runner
-                curl -L -o \
-                      actions-runner-linux-x64-{{ runner_version }}.tar.gz {{ runner_url }}
-                sudo -u actions tar xf actions-runner-linux-x64-{{ runner_version }}.tar.gz
-                sudo -u actions "{{ config_str }}"
-                ./svc.sh install
-                ./svc.sh stop
-                ./svc.sh start )
+    - name: Configure Actions
+      become_user: actions
+      ansible.builtin.shell:
+        cmd: |
+          ( cd /home/actions/actions-runner
+            {{ config_str }} --unattended 
+            ./run.sh &
+            sleep 5 && killall run.sh
+            sleep 5 )
+
+    - name: Run Actions
+      ansible.builtin.shell:
+        cmd: |
+          ( cd /home/actions/actions-runner
+            ./svc.sh install
+            ./svc.sh stop 
+            ./svc.sh start )
