@@ -11,8 +11,6 @@
       ansible.builtin.apt:
         update_cache: yes
         upgrade: dist
-        autoclean: yes
-        autoremove: yes
 
     - name: Purge unnecessary packages
       ansible.builtin.apt:
@@ -20,6 +18,13 @@
           - snapd
           - needrestart
         state: absent
+
+    - name: Clean up
+      ansible.builtin.shell:
+        cmd: |
+          apt-get autoremove -y
+        args:
+          warn: no
 
     - name: Install Docker and Docker Compose
       ansible.builtin.apt:
@@ -73,4 +78,3 @@
               ./svc.sh start
             args:
               chdir: /home/actions/actions-runner
-              executable: /bin/bash
