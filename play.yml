@@ -4,7 +4,7 @@
   become: yes
   gather_facts: no
   vars:
-    runner_version: "2.317.0"
+    runner_version: "2.319.1"
     runner_url: "https://github.com/actions/runner/releases/download/v{{ runner_version }}/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
 
   tasks:
